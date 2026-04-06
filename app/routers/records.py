@@ -29,12 +29,11 @@ def get_record_or_404(record_id: int, db: Session) -> FinancialRecord:
     "/",
     response_model=RecordOut,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_roles(UserRole.admin, UserRole.analyst))],
 )
 def create_record(
     payload: RecordCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.analyst)),
 ):
     """Create a new financial record. Admin and Analyst only."""
     record = FinancialRecord(**payload.model_dump(), created_by=current_user.id)
@@ -55,7 +54,7 @@ def list_records(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Records per page"),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),  # any authenticated user can view
+    _: User = Depends(get_current_user),
 ):
     """
     List all financial records with optional filters and pagination.
@@ -73,7 +72,7 @@ def list_records(
         query = query.filter(FinancialRecord.date <= date_to)
 
     total = query.count()
-    total_pages = max(1, -(-total // page_size))  # ceiling division
+    total_pages = max(1, -(-total // page_size))  # ceiling division without math.ceil
     records = (
         query.order_by(FinancialRecord.date.desc())
         .offset((page - 1) * page_size)
@@ -107,12 +106,12 @@ def get_record(
 @router.patch(
     "/{record_id}",
     response_model=RecordOut,
-    dependencies=[Depends(require_roles(UserRole.admin, UserRole.analyst))],
 )
 def update_record(
     record_id: int,
     payload: RecordUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.analyst)),
 ):
     """Update a record. Admin and Analyst only."""
     record = get_record_or_404(record_id, db)
@@ -129,10 +128,13 @@ def update_record(
 @router.delete(
     "/{record_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_roles(UserRole.admin))],
 )
-def delete_record(record_id: int, db: Session = Depends(get_db)):
-    """Soft delete a record (marks as deleted, not permanently removed). Admin only."""
+def delete_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.admin)),
+):
+    """Soft delete a record. Admin only."""
     record = get_record_or_404(record_id, db)
     record.is_deleted = True
     db.commit()
