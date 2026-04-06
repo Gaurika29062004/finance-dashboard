@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 import enum
 
 from app.database import Base
@@ -42,8 +42,8 @@ class FinancialRecord(Base):
     category = Column(String(100), nullable=False)
     date = Column(DateTime, nullable=False)
     notes = Column(Text, nullable=True)
-    is_deleted = Column(Boolean, default=False, nullable=False)  # soft delete
-    created_by = Column(Integer, nullable=False)  # user id
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,
