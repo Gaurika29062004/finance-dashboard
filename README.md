@@ -1,8 +1,15 @@
 # Finance Dashboard API
 
-A backend API for a role-based finance dashboard, built as part of an internship assignment.
+I built this as a backend assignment — a REST API for a role-based finance dashboard where different users interact with financial data based on their access level.
 
-Built with FastAPI and SQLite. No frontend — the API is the product.
+A few decisions I made deliberately:
+
+- Used SQLite instead of PostgreSQL. The assignment is about backend logic, not infrastructure. SQLite means anyone can clone this and run it in under a minute with no external setup.
+- Built the role guard as a reusable factory function (`require_roles()`). Adding a new role or changing permissions on any route is a one-line change, not a refactor.
+- Analysts can create and update records, not just read them. In a real finance dashboard, analysts own the data entry — restricting them to read-only didn't make sense.
+- Soft deletes on records. Data shouldn't disappear permanently in a finance system. Deleted records stay in the DB marked as `is_deleted=True`.
+
+The API is fully explorable via Swagger at `/docs` — no separate client needed.
 
 ---
 
@@ -18,28 +25,33 @@ Built with FastAPI and SQLite. No frontend — the API is the product.
 ---
 
 ## Project Structure
+
+```
 finance-dashboard/
 ├── app/
-│   ├── main.py              # app entry point
-│   ├── config.py            # settings and environment variables
-│   ├── database.py          # database engine and session
+│   ├── main.py              # entry point, registers all routers
+│   ├── config.py            # JWT secret, token expiry, DB URL
+│   ├── database.py          # SQLAlchemy engine and session
 │   ├── models/
 │   │   └── models.py        # User and FinancialRecord table definitions
 │   ├── schemas/
-│   │   └── schemas.py       # pydantic schemas for validation
+│   │   └── schemas.py       # Pydantic schemas for input validation
 │   ├── middleware/
-│   │   └── auth.py          # JWT logic, password hashing, role guards
+│   │   └── auth.py          # JWT creation, role-based access guards
 │   └── routers/
-│       ├── auth.py          # register and login
-│       ├── users.py         # user management
-│       ├── records.py       # financial records CRUD
-│       └── dashboard.py     # summary and analytics
-├── seed.py                  # creates 3 test users
+│       ├── auth.py          # POST /auth/register, POST /auth/login
+│       ├── users.py         # user management (admin only)
+│       ├── records.py       # CRUD + filters + pagination
+│       └── dashboard.py     # summary analytics endpoints
+├── seed.py                  # creates admin, analyst, viewer test users
 ├── requirements.txt
 └── README.md
+```
+
 ---
 
 ## Setup
+
 ```bash
 git clone https://github.com/Gaurika29062004/finance-dashboard.git
 cd finance-dashboard
@@ -109,18 +121,6 @@ Filters available on `GET /records/`: `type`, `category`, `date_from`, `date_to`
 
 ---
 
-## Key Design Decisions
-
-**Soft deletes** — records are never permanently removed, just marked as deleted. This preserves data history and allows recovery.
-
-**Role guard factory** — access control uses a reusable `require_roles()` function that wraps FastAPI's dependency system. Keeps route definitions clean.
-
-**SQLite** — chosen deliberately for zero-setup simplicity. The database file is created automatically on first run. Switching to PostgreSQL only requires changing `DATABASE_URL` in the config.
-
-**Analyst permissions** — the assignment describes analysts as having read access and insight access. I extended this to include record creation and updates, since in a real finance dashboard the analyst role typically owns data entry.
-
----
-
 ## Error Responses
 
 | Situation | Status |
@@ -130,13 +130,3 @@ Filters available on `GET /records/`: `type`, `category`, `date_from`, `date_to`
 | Insufficient role | 403 |
 | Resource not found | 404 |
 | Duplicate email | 400 |
-
----
-
-## Optional Features Included
-
-- JWT authentication
-- Pagination on record listing
-- Soft deletes
-- Swagger UI at `/docs`
-- Input validation via Pydantic
